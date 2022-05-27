@@ -5,8 +5,6 @@ import co.com.sofka.calendar.collections.Program;
 import co.com.sofka.calendar.collections.Time;
 import co.com.sofka.calendar.model.ProgramDate;
 import co.com.sofka.calendar.repositories.ProgramRepository;
-import com.google.gson.Gson;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,8 +19,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
 @ExtendWith(MockitoExtension.class)
 class SchedulerServiceTest {
 
@@ -34,7 +30,6 @@ class SchedulerServiceTest {
 
 
     @Test
-        //TODO: modificar el test para que el act sea reactivo, usando stepverifier
     void generateCalendar() {
         var programId = "xxxx";
         var startDate = LocalDate.of(2022, 1, 1);
@@ -42,18 +37,18 @@ class SchedulerServiceTest {
         Program program = getProgramDummy();
 
         Mockito.when(repository.findById(programId)).thenReturn(Mono.just(program));
-        //TODO: hacer una subscripción de el servicio reactivo
+
         Flux<ProgramDate> response = schedulerService.generateCalendar(programId, startDate);
-        String res = new Gson().toJson(response);
-        StepVerifier.create(response).expectNextMatches(r -> res.equals(getSnapResult())).expectComplete().verify();
-        StepVerifier.create(response).expectNextCount(13).verifyComplete();
+        StepVerifier.create(response)
+                .recordWith(ArrayList::new)
+                .thenConsumeWhile(x -> true)  // Predicate on elements
+                .consumeRecordedWith(matches ->
+                        matches.forEach(v -> getSnapResult().equals(v)))
+                .verifyComplete();
+        StepVerifier.create(response)
+                .expectNextCount(13)
+                .verifyComplete();
         Mockito.verify(repository).findById(programId);
-
-
-        /*Assertions.assertEquals(13, response.size());//TODO: hacer de otro modo
-        Assertions.assertEquals(getSnapResult(), new Gson().toJson(response));//TODO: hacer de otro modo
-        Mockito.verify(repository).findById(programId);*/
-
 
     }
 
@@ -64,7 +59,6 @@ class SchedulerServiceTest {
 
         Mockito.when(repository.findById(programId)).thenReturn(Mono.empty());
 
-        //TODO: hacer de otro modo
         Flux<ProgramDate> response = schedulerService.generateCalendar(programId, startDate);
 
         StepVerifier.create(response).expectErrorMessage("Programa no existe").verify();//Done: hacer de otro modo
